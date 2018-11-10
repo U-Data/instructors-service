@@ -1,8 +1,9 @@
 const Sequelize = require('sequelize');
+const db = require('../db.config.js');
 
-const sequelize = new Sequelize('inst', 'udemo', 'DBPassword', {
+const sequelize = new Sequelize('inst', db.db, db.password, {
   dialect: 'mysql',
-  host: 'aa1nsis7r4ymq1v.cc5obfk5ms0b.us-east-2.rds.amazonaws.com',
+  host: db.host,
   port: 3306,
   logging: console.log,
   maxConcurrentQueries: 100,
