@@ -5,8 +5,13 @@ const mysql = require('../database/sqlizeIndex.js');
 
 const app = express();
 
-app.use(express.static(path.join(__dirname, '/../client/dist')));
-app.get('/instructors/:id', (req, res) => {
+app.use('/courses', express.static(path.join(__dirname, '/../client/dist')));
+
+app.get('/courses/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, '/../client/dist/index.html'));
+});
+
+app.get('/:id/instructors', (req, res) => {
   mysql.sequelize.authenticate()
     .then(function getInstructorIds() {
       return mysql.Join.findAll({ where: { course_id: req.params.id } });

@@ -22,10 +22,10 @@ mysql -u root -p [Enter password]
 create database inst;
 
 To seed database:
-npm seed
+node database/seed.js
 
 To start server:
-npm server-dev
+node server/index.js
 
 To build:
 npm react-dev

@@ -8,7 +8,6 @@ class App extends React.Component {
     super(props);
     this.state = {
       instructors: null,
-      courseId: Math.random() * 100,
     };
     this.update = this.update.bind(this);
     this.renderInstructors = this.renderInstructors.bind(this);
@@ -20,7 +19,7 @@ class App extends React.Component {
   }
 
   update() {
-    fetch(`/instructors/${this.state.courseId}`)
+    fetch('/' + window.location.pathname.split('/')[2] + '/instructors')
       .then(response => response.json())
       .then((data) => {
         this.setState({
@@ -50,8 +49,7 @@ class App extends React.Component {
     let courses;
     if (this.state.instructors) {
       courses = this.state.instructors.slice(0, 3)
-        .map((inst, i) => < More key={i} info={this.state.instructors[i]}
-          id={this.state.courseId} />);
+        .map((inst, i) => < More key={i} info={this.state.instructors[i]} />);
     } else {
       courses = null;
     }
