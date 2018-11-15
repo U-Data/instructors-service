@@ -12,6 +12,10 @@ class App extends React.Component {
     this.update = this.update.bind(this);
     this.renderInstructors = this.renderInstructors.bind(this);
     this.renderCourses = this.renderCourses.bind(this);
+
+    this.handleDelete = this.handleDelete.bind(this);
+    this.handleCreate = this.handleCreate.bind(this);
+    this.handleUpdate = this.handleUpdate.bind(this);
   }
 
   componentDidMount() {
@@ -56,15 +60,38 @@ class App extends React.Component {
     return courses;
   }
 
+  handleDelete() {
+    fetch('/courses', {
+      method: 'DELETE',
+    })
+  }
+
+  handleCreate() {
+    fetch('/courses', {
+      method: 'POST',
+    })
+  }
+
+  handleUpdate() {
+    fetch('/courses', {
+      method: 'PATCH',
+    })
+  }
+
   render() {
     return (
-      <div className={styles.leftCol}>
-        <div className={styles.aboutInstructors}>
-          {this.renderInstructors()}
+      <div>
+        <div className={styles.leftCol}>
+          <div className={styles.aboutInstructors}>
+            {this.renderInstructors()}
+          </div>
+          <div className={styles.instructorCourses}>
+            {this.renderCourses()}
+          </div>
         </div>
-        <div className={styles.instructorCourses}>
-          {this.renderCourses()}
-        </div>
+        <button onClick={this.handleDelete}>Delete course with largest id</button>
+        <button onClick={this.handleCreate}>Create course with name 'New Course'</button>
+        <button onClick={this.handleUpdate}>Update largest-id course's full_price to $999</button>
       </div>
     );
   }

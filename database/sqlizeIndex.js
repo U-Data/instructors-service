@@ -7,9 +7,9 @@ const sequelize = new Sequelize('inst', db.db, db.password, {
   port: 3306,
   logging: console.log,
   maxConcurrentQueries: 100,
-  dialectOptions: {
-    ssl: 'Amazon RDS',
-  },
+  // dialectOptions: {
+  //   ssl: 'Amazon RDS',
+  // },
   pool: { maxConnections: 5, maxIdleTime: 30 },
   language: 'en',
 });
@@ -60,8 +60,8 @@ const Join = sequelize.define('joins', {
   underscored: true,
 });
 
-Join.belongsTo(Instructors, { foreignKey: 'inst_id' });
-Join.belongsTo(Courses, { foreignKey: 'course_id' });
+Join.belongsTo(Instructors, { foreignKey: 'inst_id', onDelete: 'CASCADE' });
+Join.belongsTo(Courses, { foreignKey: 'course_id', onDelete: 'CASCADE' });
 
 module.exports = {
   Instructors, Courses, Join, sequelize,

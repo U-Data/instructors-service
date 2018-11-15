@@ -1,18 +1,16 @@
 # Project Name
 
-> Project description
+> Instructors/Related Courses Module for Udemy-Like Product Page
 
-## Related Projects
+## API
 
-  - https://github.com/u-demo/students-also-bought-service
-  - https://github.com/u-demo/header-sidebar-service
-  - https://github.com/u-demo/Student-Feedback
-
-## Table of Contents
-
-1. [Usage](#Usage)
-1. [Requirements](#requirements)
-1. [Development](#development)
+| Endpoint             | Method  | Description
+| -------------------- | ------- | -----------
+| /courses/:id         | GET     | Retrieve course by id
+| /:id/instructors     | GET     | Retrieve instructors by course id
+| /courses             | POST    | Add a new course to DB
+| /courses             | PATCH   | Update the last course's full price
+| /courses             | DELETE  | Delete the last course
 
 ## Usage
 
@@ -32,23 +30,3 @@ npm react-dev
 
 To test:
 npm test
-
-
-## Requirements
-
-An `nvmrc` file is included if using [nvm](https://github.com/creationix/nvm).
-
-- Node 6.13.0
-- etc
-
-## Development
-
-### Installing Dependencies
-
-From within the root directory:
-
-```sh
-npm install -g webpack
-npm install
-```
-

@@ -56,6 +56,38 @@ app.get('/:id/instructors', (req, res) => {
     });
 });
 
+///////////// New additions by KTS /////////////
+app.delete('/courses', (req, res) => {
+  mysql.sequelize.authenticate()
+    .then(() => mysql.Courses.max('id'))
+    .then((maxId) => mysql.Courses.destroy({
+      where: {
+        id: maxId,
+      },
+    }))
+    .then(() => res.end());
+});
+
+app.patch('/courses', (req, res) => {
+  mysql.sequelize.authenticate()
+    .then(() => mysql.Courses.max('id'))
+    .then((maxId) => mysql.Courses.update({
+      full_price: 999,
+    }, {
+      where: {id: maxId},
+    }))
+    .then(() => res.end());
+});
+
+app.post('/courses', (req, res) => {
+  mysql.sequelize.authenticate()
+    .then(() => mysql.Courses.create({
+      course_name: 'New Course',
+    }))
+    .then(() => res.end()); 
+});
+////////////////////////////////////////////////////
+
 app.listen(8081, () => {
   console.log("listening on port 8081");
 });

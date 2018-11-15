@@ -10,13 +10,13 @@ const joinData = joinInfo(courseList.length, numInstructors);
 
 mysql.sequelize.sync()
   .then(() => {
-    mysql.Courses.bulkCreate(courseData);
+    return mysql.Courses.bulkCreate(courseData);
   })
   .then(() => {
-    mysql.Instructors.bulkCreate(instData);
+    return mysql.Instructors.bulkCreate(instData);
   })
   .then(() => {
-    mysql.Join.bulkCreate(joinData);
+    return mysql.Join.bulkCreate(joinData);
   })
   .then(() => {
     const promises = [];
@@ -27,7 +27,8 @@ mysql.sequelize.sync()
         }))
         .then((data) => {
           const update = inst.updateInstructor(data);
-          mysql.Instructors.update(update, { where: { id: i } });
+          
+          return mysql.Instructors.update(update, { where: { id: i } });
         });
       promises.push(newPromise);
     }
