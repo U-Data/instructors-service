@@ -2,11 +2,12 @@ const mysql = require('./sqlizeIndex.js');
 const courseData = require('./genCourses.js');
 const inst = require('./genInstructors.js');
 const joinInfo = require('./genJoin.js');
-const courseList = require('./courseList.js');
+// const courseList = require('./courseList.js');
 
-const numInstructors = 30;
+// assume an average instructor:course ratio of 1:4
+const numInstructors = courseData.length / 4;
 const instData = inst.instructorGenerator(numInstructors);
-const joinData = joinInfo(courseList.length, numInstructors);
+const joinData = joinInfo(courseData.length, numInstructors);
 
 mysql.sequelize.sync()
   .then(() => {

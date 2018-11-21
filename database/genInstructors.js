@@ -1,31 +1,45 @@
+// run: node --max-old-space-size=4096 database/genInstructors.js
+
 const faker = require('faker');
+const { performance } = require('perf_hooks');
+const fs = require('fs');
 
-const instructorGenerator = (num) => {
-  const instructorData = [];
-  for (let i = 1; i <= num; i += 1) {
-    const instructor = {
-      inst_name: faker.name.findName(),
-      students: Math.floor(Math.random() * 100000),
-      title: faker.lorem.words(),
-      blurb: faker.lorem.paragraphs(),
-    };
-    instructor.photo_url = Math.random() > 0.5
-      ? `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 90)}.jpg`
-      : `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 90)}.jpg`;
-    instructorData.push(instructor);
-  }
-  return instructorData;
-};
+const tsvLine = array => `${array.join(',')}\n`;
+// const tsvLine = array => `${array.join('\t')}\n`;
 
-const updateInstructor = (courses) => {
-  let totScore = 0;
-  let totReviews = 0;
-  for (let i = 0; i < courses.length; i += 1) {
-    totScore += courses[i].dataValues.rating * courses[i].dataValues.reviews;
-    totReviews += courses[i].dataValues.reviews;
-  }
-  const score = Math.round(totScore / totReviews * 10) / 10;
-  return { rating: score, reviews: totReviews, courses: courses.length };
-};
+const startTime = performance.now();
 
-module.exports = { instructorGenerator, updateInstructor };
+const colNames = [
+  'id',
+  'inst_name',
+  'students',
+  'title',
+  'photo_url',
+  'blurb',
+];
+
+const wstream = fs.createWriteStream('/Users/tan/sdc_data/instructors.csv');
+// const wstream = fs.createWriteStream('/Users/tan/sdc_data/instructors.txt');
+wstream.write(tsvLine(colNames));
+
+const n = 500000;
+
+for (let i = 1; i <= n; i += 1) {
+  const instructor = {
+    id: i,
+    inst_name: faker.name.findName(),
+    students: Math.floor(Math.random() * 100000),
+    title: faker.lorem.words(),
+    blurb: `"${faker.lorem.paragraphs()}"`,
+  };
+  instructor.photo_url = Math.random() > 0.5
+    ? `https://randomuser.me/api/portraits/women/${Math.floor(Math.random() * 90)}.jpg`
+    : `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 90)}.jpg`;
+
+  wstream.write(tsvLine(colNames.map(name => instructor[name])));
+  // skipping: rating, reviews, courses
+}
+
+console.log('n: ', n, ', time elapsed (ms): ', performance.now() - startTime);
+
+wstream.end();
