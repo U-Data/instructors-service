@@ -1,17 +1,17 @@
 const Sequelize = require('sequelize');
 const db = require('../db.config.js');
 
-const sequelize = new Sequelize('inst', db.db, db.password, {
-  dialect: 'mysql',
+const sequelize = new Sequelize('inst', db.username, db.password, {
+  dialect: 'postgres',
   host: db.host,
-  port: 3306,
-  logging: console.log,
-  maxConcurrentQueries: 100,
-  // dialectOptions: {
-  //   ssl: 'Amazon RDS',
-  // },
-  pool: { maxConnections: 5, maxIdleTime: 30 },
-  language: 'en',
+  // // port: 3306,
+  // logging: console.log,
+  // maxConcurrentQueries: 100,
+  // // dialectOptions: {
+  // //   ssl: 'Amazon RDS',
+  // // },
+  // pool: { maxConnections: 5, maxIdleTime: 30 },
+  // language: 'en',
 });
 
 const Instructors = sequelize.define('instructors', {

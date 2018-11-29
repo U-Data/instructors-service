@@ -17,20 +17,25 @@ class App extends React.Component {
     this.handleDelete = this.handleDelete.bind(this);
     this.handleCreate = this.handleCreate.bind(this);
     this.handleUpdate = this.handleUpdate.bind(this);
+
+    this.update();  ////////////
+    this.courseId = props.courseId;
   }
 
-  componentDidMount() {
-    this.update();
-  }
+  // componentDidMount() {
+  //   this.update();
+  // }
 
   update() {
-    fetch('/' + window.location.pathname.split('/')[2] + '/instructors')
-      .then(response => response.json())
-      .then((data) => {
-        this.setState({
-          instructors: data,
-        });
-      });
+    // fetch('/' + window.location.pathname.split('/')[2] + '/instructors')
+    // axios.get(`http://localhost:8080/${this.courseId}/instructors`)
+    //   .then(response => response.json())
+    //   .then((data) => {
+    //     console.log('BBBBBBBB');
+    //     this.setState({
+    //       instructors: data,
+    //     });
+    //   });
   }
 
   renderInstructors() {
@@ -101,3 +106,26 @@ class App extends React.Component {
 }
 
 export default App;
+
+/*
+            {
+              instructors
+                ? [
+                  <div key={'header'} className={styles.aboutHeader}>
+                    {instructors.length > 1 ? 'About the instructors' : 'About the instructor'}
+                  </div>,
+                  instructors.map((inst, i) => <div key={i} className={styles.aboutInstructor}>
+                  < About key={i} info={this.state.instructors[i].instInfo} /></div>),
+                ]
+                : null
+            }
+          </div>
+          <div className={styles.instructorCourses}>
+            {
+              instructors
+                ? instructors.slice(0, 3).map((inst, i) => <More key={i} info={instructors[i]} />)
+                : null
+            }
+*/
+
+// { this.renderCourses() }

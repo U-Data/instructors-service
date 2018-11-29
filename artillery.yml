@@ -1,0 +1,22 @@
+config:
+  target: "http://localhost:8081/courses"
+  phases:
+    - duration: 60
+      arrivalRate: 1
+    - duration: 60
+      arrivalRate: 5
+  payload:
+    path: "/Users/tan/sdc_data/stressCourses.csv"
+    fields:
+      - "course_id"
+scenarios:
+  - name: "instructor service"
+    flow:
+      - post:
+          url: "/"
+          body: "kw={{ keywords }}"
+          capture:
+            json: "$.results[0].id"
+            as: "id"
+      - get:
+          url: "/{{ $course_id }}"

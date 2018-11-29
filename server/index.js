@@ -1,7 +1,7 @@
 /* eslint-disable prefer-arrow-callback */
 const express = require('express');
 const path = require('path');
-const mysql = require('../database/sqlizeIndex.js');
+const sql = require('../database/sqlizeIndex.js');
 
 const app = express();
 
@@ -12,9 +12,12 @@ app.get('/courses/:id', (req, res) => {
 });
 
 app.get('/:id/instructors', (req, res) => {
-  mysql.sequelize.authenticate()
+  sql.sequelize.authenticate()
     .then(function getInstructorIds() {
-      return mysql.Join.findAll({ where: { course_id: req.params.id } });
+      return sql.Join.findAll({
+        attributes: ['inst_id'],
+        where: { course_id: req.params.id },
+      });
     })
 
     .then(function getAllInstructors(data) {
@@ -27,19 +30,22 @@ app.get('/:id/instructors', (req, res) => {
           instInfo: null,
           courseInfo: null,
         });
-        const newPromise = mysql.Instructors.findOne({ where: { id: inst.dataValues.inst_id } })
+        const newPromise = sql.Instructors.findOne({ where: { id: inst.dataValues.inst_id } })
 
           .then(function getInstructorInfo(instData) {
             instructor.instInfo = instData;
-            return mysql.Join.findAll({ where: { inst_id: inst.dataValues.inst_id } });
+            return sql.Join.findAll({
+              attributes: ['course_id'],
+              where: { inst_id: inst.dataValues.inst_id },
+            });
           })
 
           .then(function getCourseInfo(courses) {
-            return mysql.Courses.findAll({
+            return sql.Courses.findAll({
               where: {
-                id: [courses
+                id: courses
                   .map(course => course.course_id)
-                  .filter(c => c != req.params.id)],
+                  .filter(c => c !== req.params.id),
               },
             });
           })
@@ -58,9 +64,9 @@ app.get('/:id/instructors', (req, res) => {
 
 ///////////// New additions by KTS /////////////
 app.delete('/courses', (req, res) => {
-  mysql.sequelize.authenticate()
-    .then(() => mysql.Courses.max('id'))
-    .then((maxId) => mysql.Courses.destroy({
+  sql.sequelize.authenticate()
+    .then(() => sql.Courses.max('id'))
+    .then((maxId) => sql.Courses.destroy({
       where: {
         id: maxId,
       },
@@ -69,9 +75,9 @@ app.delete('/courses', (req, res) => {
 });
 
 app.patch('/courses', (req, res) => {
-  mysql.sequelize.authenticate()
-    .then(() => mysql.Courses.max('id'))
-    .then((maxId) => mysql.Courses.update({
+  sql.sequelize.authenticate()
+    .then(() => sql.Courses.max('id'))
+    .then((maxId) => sql.Courses.update({
       full_price: 999,
     }, {
       where: {id: maxId},
@@ -80,8 +86,8 @@ app.patch('/courses', (req, res) => {
 });
 
 app.post('/courses', (req, res) => {
-  mysql.sequelize.authenticate()
-    .then(() => mysql.Courses.create({
+  sql.sequelize.authenticate()
+    .then(() => sql.Courses.create({
       course_name: 'New Course',
     }))
     .then(() => res.end()); 
