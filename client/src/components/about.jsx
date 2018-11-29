@@ -85,7 +85,8 @@ export default About;
 About.propTypes = {
   info: PropTypes.shape({
     photo_url: PropTypes.string,
-    rating: PropTypes.string,
+    // rating: PropTypes.string,
+    rating: PropTypes.number,
     reviews: PropTypes.number,
     students: PropTypes.number,
     courses: PropTypes.number,

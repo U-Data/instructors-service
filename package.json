@@ -10,6 +10,7 @@
     "seed": "node database/seed.js",
     "react-dev": "webpack -d --watch",
     "server-dev": "node server/index.js",
+    "start": "node server/index.js",
     "test": "jest --coverage"
   },
   "babel": {
@@ -32,6 +33,7 @@
     ]
   },
   "dependencies": {
+    "axios": "^0.18.0",
     "bluebird": "^3.5.2",
     "csv-stringify": "^4.3.1",
     "csv-writer": "^1.2.0",
@@ -39,10 +41,13 @@
     "express-flash": "git://github.com/RGBboy/express-flash.git",
     "faker": "^4.1.0",
     "jest-fetch-mock": "^1.6.6",
+    "jsonpath": "^1.0.0",
     "mysql": "^2.16.0",
     "mysql2": "^1.6.1",
+    "newrelic": "^4.11.0",
     "node-pre-gyp": "^0.12.0",
     "performance": "^1.1.1",
+    "pg": "^7.6.1",
     "prop-types": "^15.6.2",
     "react": "^16.5.2",
     "react-dom": "^16.5.2",
@@ -52,6 +57,7 @@
     "@babel/core": "^7.1.2",
     "@babel/preset-env": "^7.1.0",
     "@babel/preset-react": "^7.0.0",
+    "artillery": "^1.6.0-25",
     "babel-core": "^7.0.0-bridge.0",
     "babel-eslint": "^10.0.1",
     "babel-jest": "^23.6.0",

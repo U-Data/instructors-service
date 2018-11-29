@@ -1,0 +1,451 @@
+\timing on
+
+\c inst;
+
+CREATE TABLE courses (
+  id serial NOT NULL,
+  course_name VARCHAR(255),
+  rating float(1),
+  reviews INT,
+  lectures INT,
+  num_hours INT,
+  full_price float(2),
+  disc_price float(2),
+  photo_url VARCHAR(255),
+  CONSTRAINT courses_pkey PRIMARY KEY (id)
+);
+
+CREATE SEQUENCE courses_id_seq START 1;
+
+CREATE UNIQUE INDEX courses_idx ON courses (id);
+
+COPY courses(course_name, rating, reviews, lectures, num_hours, full_price, disc_price, photo_url)
+FROM '/Users/tan/sdc_data/courses.txt' DELIMITER E'\t' CSV HEADER;
+
+CREATE TABLE instructors (
+  id serial NOT NULL,
+  inst_name VARCHAR(50),
+  students INT,
+  title VARCHAR(255),
+  photo_url VARCHAR(255),
+  blurb TEXT,
+  CONSTRAINT instructors_pkey PRIMARY KEY (id)
+);
+
+CREATE SEQUENCE instructors_id_seq START 1;
+
+CREATE UNIQUE INDEX instructors_idx ON instructors (id);
+
+COPY instructors(inst_name, students, title, photo_url, blurb)
+FROM '/Users/tan/sdc_data/instructors.txt' DELIMITER E'\t' CSV HEADER;
+
+CREATE TABLE joins (
+  course_id INT,
+  inst_id INT
+);
+
+COPY joins(course_id, inst_id)
+FROM '/Users/tan/sdc_data/joins.txt' DELIMITER E'\t' CSV HEADER;
+
+CREATE UNIQUE INDEX joins_idx ON joins (inst_id, course_id);
+CREATE UNIQUE INDEX joins_idx2 ON joins (course_id, inst_id);
+
+\d
+
+
+
+
+mongoimport -d inst -c courses --type tsv --file courses.txt --headerline
+mongoimport -d inst -c instructors --type csv --file instructors.csv --headerline
+mongoimport -d inst -c joins --type tsv --file joins.txt --headerline
+
+
+
+select
+c.id
+, c.course_name
+, c.rating
+, c.reviews
+, c.lectures
+, c.num_hours
+, c.full_price
+, c.disc_price
+, c.photo_url
+, array_to_json(array_agg(i.*)) as instructors
+from courses c join joins j on c.id = j.course_id join instructors i on j.inst_id = i.id
+where c.id in (1,2)
+group by
+c.id
+, c.course_name
+, c.rating
+, c.reviews
+, c.lectures
+, c.num_hours
+, c.full_price
+, c.disc_price
+, c.photo_url
+;
+
+/Library/PostgreSQL/11/bin
+
+./psql -U postgres -c '\timing' -f /Users/tan/Documents/HackReactor/sdc/instructors-service/mongodata.sql > /Users/tan/sdc_data/mongodata.json
+
+
+
+db.courses.aggregate([
+   {
+     $lookup:
+       {
+         from: "joins",
+         localField: "id",
+         foreignField: "course_id",
+         as: "joins"
+       }
+  }
+]).aggregate([
+   {
+     $lookup:
+       {
+         from: "instructors",
+         localField: "item",
+         foreignField: "sku",
+         as: "inventory_docs"
+       }
+  }
+])
+
+
+db.courses.find().limit(2).forEach(x => db.test.insert(x))
+
+
+// fully denormalized dataset
+// try setting all fields of instructors to 0 except for _id & add lookups to test performance
+
+db.setProfilingLevel(2)
+
+db.test.aggregate([
+
+
+
+db.test.explain("executionStats").aggregate([
+db.courses.explain("executionStats").aggregate([
+  {
+    $lookup:
+      {
+        from: "joins",
+        localField: "id",
+        foreignField: "course_id",
+        as: "joins"
+      }
+  },
+  {
+    $unwind: "$joins"
+  },
+  {
+    $lookup:
+      {
+        from: "instructors",
+        localField: "joins.inst_id",
+        foreignField: "id",
+        as: "instructor"
+      }
+  },
+  {
+    $unwind: "$instructor"
+  },
+  {
+    $group:
+      {
+        _id:
+          {
+            id: "$id",
+            course_name: "$course_name",
+            rating: "$rating",
+            reviews: "$reviews",
+            lectures: "$lectures",
+            num_hours: "$num_hours",
+            full_price: "$full_price",
+            disc_price: "$disc_price",
+            photo_url: "$photo_url",
+          },
+        instructors: { $push: "$instructor" }
+      }
+  },
+  {
+    $project:
+      {
+        id: "$_id.id",
+        course_name: "$_id.course_name",
+        rating: "$_id.rating",
+        reviews: "$_id.reviews",
+        lectures: "$_id.lectures",
+        num_hours: "$_id.num_hours",
+        full_price: "$_id.full_price",
+        disc_price: "$_id.disc_price",
+        photo_url: "$_id.photo_url",
+        instructors: "$instructors",
+        _id: 0
+      }
+  },
+  {
+    $out: "course_inst"
+  }
+])
+
+==> shut down coz it's been running for too long (15+mins)
+
+
+
+
+
+
+db.courses.createIndex({ id: 1 });
+db.instructors.createIndex({ id: 1 });
+db.joins.createIndex({ course_id: 1, inst_id: 1 });
+db.joins.createIndex({ inst_id: 1, course_id: 1 });
+
+
+
+
+GET Request 1: retrieve course data by course id
+================================================
+
+PostgreSQL
+----------
+
+inst=# SELECT * FROM courses WHERE id = 950000;
+   id   |             course_name              | rating | reviews | lectures | num_hours | full_price | disc_price |               photo_url                
+--------+--------------------------------------+--------+---------+----------+-----------+------------+------------+----------------------------------------
+ 950000 | Quantifying cross-media partnerships |    0.7 |     103 |       30 |       221 |     865.74 |      86.57 | https://picsum.photos/200/300?image=23
+(1 row)
+
+Time: 0.372 ms
+
+
+
+MongoDB
+-------
+
+> db.courses.find({ id: 950000 });
+{ "_id" : ObjectId("5bf4d7e316e26111aa436bbd"), "id" : 950000, "course_name" : "Parsing strategic initiatives", "rating" : 3.7, "reviews" : 352, "lectures" : 32, "num_hours" : 152, "full_price" : 375.92, "disc_price" : 37.59, "photo_url" : "https://picsum.photos/200/300?image=35" }
+
+
+
+
+
+GET Request 2: retrieve instructors + data for other courses also taught by instructors
+=======================================================================================
+
+PostgreSQL
+----------
+
+inst=# SELECT i.*, c.*
+inst-# FROM joins j1
+inst-# JOIN joins j2 ON j1.inst_id = j2.inst_id
+inst-# JOIN instructors i ON j1.inst_id = i.id
+inst-# JOIN courses c ON j2.course_id = c.id
+inst-# WHERE j1.course_id = 950000 AND j1.course_id != j2.course_id;
+   id   |   inst_name   | students |          title          |                    photo_url                     |                                                                                                                                             blurb                                                                                                                                              |   id    |                course_name                 | rating | reviews | lectures | num_hours | full_price | disc_price |               photo_url                
+--------+---------------+----------+-------------------------+--------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------+--------------------------------------------+--------+---------+----------+-----------+------------+------------+----------------------------------------
+ 255423 | Raquel Wunsch |    17562 | veniam et nam           | https://randomuser.me/api/portraits/women/46.jpg | Voluptate commodi excepturi eius ipsam facere ad rerum beatae. Quia aut a occaecati modi deserunt perferendis est error. Illo consequuntur ipsa et nihil nostrum dolores qui. Et occaecati itaque et.                                                                                         +|   14291 | Backing up web-enabled deliverables        |    0.5 |     133 |       95 |       548 |       7.92 |       0.79 | https://picsum.photos/200/300?image=5
+        |               |          |                         |                                                  |  \rRatione omnis occaecati. Eaque asperiores maxime. Ipsa id recusandae sed architecto placeat. Dolor voluptatem autem.                                                                                                                                                                       +|         |                                            |        |         |          |           |            |            | 
+        |               |          |                         |                                                  |  \rSunt excepturi consectetur possimus saepe temporibus quia. Velit quo qui deserunt harum est illo ut totam. Dignissimos voluptatem voluptates iure. Magni suscipit recusandae dicta soluta recusandae. Accusantium perspiciatis dolor id non est.                                            |         |                                            |        |         |          |           |            |            | 
+ 255423 | Raquel Wunsch |    17562 | veniam et nam           | https://randomuser.me/api/portraits/women/46.jpg | Voluptate commodi excepturi eius ipsam facere ad rerum beatae. Quia aut a occaecati modi deserunt perferendis est error. Illo consequuntur ipsa et nihil nostrum dolores qui. Et occaecati itaque et.                                                                                         +|  311651 | Indexing plug-and-play interfaces          |      5 |     727 |        1 |         3 |     145.86 |      14.58 | https://picsum.photos/200/300?image=1
+        |               |          |                         |                                                  |  \rRatione omnis occaecati. Eaque asperiores maxime. Ipsa id recusandae sed architecto placeat. Dolor voluptatem autem.                                                                                                                                                                       +|         |                                            |        |         |          |           |            |            | 
+        |               |          |                         |                                                  |  \rSunt excepturi consectetur possimus saepe temporibus quia. Velit quo qui deserunt harum est illo ut totam. Dignissimos voluptatem voluptates iure. Magni suscipit recusandae dicta soluta recusandae. Accusantium perspiciatis dolor id non est.                                            |         |                                            |        |         |          |           |            |            | 
+ 255423 | Raquel Wunsch |    17562 | veniam et nam           | https://randomuser.me/api/portraits/women/46.jpg | Voluptate commodi excepturi eius ipsam facere ad rerum beatae. Quia aut a occaecati modi deserunt perferendis est error. Illo consequuntur ipsa et nihil nostrum dolores qui. Et occaecati itaque et.                                                                                         +|  339539 | Generating killer e-markets                |    0.3 |     696 |       17 |       104 |     483.88 |      48.38 | https://picsum.photos/200/300?image=6
+        |               |          |                         |                                                  |  \rRatione omnis occaecati. Eaque asperiores maxime. Ipsa id recusandae sed architecto placeat. Dolor voluptatem autem.                                                                                                                                                                       +|         |                                            |        |         |          |           |            |            | 
+        |               |          |                         |                                                  |  \rSunt excepturi consectetur possimus saepe temporibus quia. Velit quo qui deserunt harum est illo ut totam. Dignissimos voluptatem voluptates iure. Magni suscipit recusandae dicta soluta recusandae. Accusantium perspiciatis dolor id non est.                                            |         |                                            |        |         |          |           |            |            | 
+ 255423 | Raquel Wunsch |    17562 | veniam et nam           | https://randomuser.me/api/portraits/women/46.jpg | Voluptate commodi excepturi eius ipsam facere ad rerum beatae. Quia aut a occaecati modi deserunt perferendis est error. Illo consequuntur ipsa et nihil nostrum dolores qui. Et occaecati itaque et.                                                                                         +|  380677 | Copying back-end mindshare                 |    1.7 |     747 |       15 |        16 |     662.98 |      66.29 | https://picsum.photos/200/300?image=23
+        |               |          |                         |                                                  |  \rRatione omnis occaecati. Eaque asperiores maxime. Ipsa id recusandae sed architecto placeat. Dolor voluptatem autem.                                                                                                                                                                       +|         |                                            |        |         |          |           |            |            | 
+        |               |          |                         |                                                  |  \rSunt excepturi consectetur possimus saepe temporibus quia. Velit quo qui deserunt harum est illo ut totam. Dignissimos voluptatem voluptates iure. Magni suscipit recusandae dicta soluta recusandae. Accusantium perspiciatis dolor id non est.                                            |         |                                            |        |         |          |           |            |            | 
+ 255423 | Raquel Wunsch |    17562 | veniam et nam           | https://randomuser.me/api/portraits/women/46.jpg | Voluptate commodi excepturi eius ipsam facere ad rerum beatae. Quia aut a occaecati modi deserunt perferendis est error. Illo consequuntur ipsa et nihil nostrum dolores qui. Et occaecati itaque et.                                                                                         +|  839087 | Navigating magnetic mindshare              |    2.8 |     558 |       24 |       170 |      49.16 |       4.91 | https://picsum.photos/200/300?image=4
+        |               |          |                         |                                                  |  \rRatione omnis occaecati. Eaque asperiores maxime. Ipsa id recusandae sed architecto placeat. Dolor voluptatem autem.                                                                                                                                                                       +|         |                                            |        |         |          |           |            |            | 
+        |               |          |                         |                                                  |  \rSunt excepturi consectetur possimus saepe temporibus quia. Velit quo qui deserunt harum est illo ut totam. Dignissimos voluptatem voluptates iure. Magni suscipit recusandae dicta soluta recusandae. Accusantium perspiciatis dolor id non est.                                            |         |                                            |        |         |          |           |            |            | 
+ 255423 | Raquel Wunsch |    17562 | veniam et nam           | https://randomuser.me/api/portraits/women/46.jpg | Voluptate commodi excepturi eius ipsam facere ad rerum beatae. Quia aut a occaecati modi deserunt perferendis est error. Illo consequuntur ipsa et nihil nostrum dolores qui. Et occaecati itaque et.                                                                                         +|  880186 | Parsing revolutionary eyeballs             |    1.6 |     819 |       81 |       198 |      267.3 |      26.73 | https://picsum.photos/200/300?image=10
+        |               |          |                         |                                                  |  \rRatione omnis occaecati. Eaque asperiores maxime. Ipsa id recusandae sed architecto placeat. Dolor voluptatem autem.                                                                                                                                                                       +|         |                                            |        |         |          |           |            |            | 
+        |               |          |                         |                                                  |  \rSunt excepturi consectetur possimus saepe temporibus quia. Velit quo qui deserunt harum est illo ut totam. Dignissimos voluptatem voluptates iure. MTime: 2.278 ms
+...
+
+
+
+MongoDB
+-------
+
+> db.joins.find({ course_id: 950000 }, { inst_id: 1 });
+{ "_id" : ObjectId("5bf4ce5616e26111aa800768"), "inst_id" : 174490 }
+{ "_id" : ObjectId("5bf4ce5616e26111aa800765"), "inst_id" : 220527 }
+{ "_id" : ObjectId("5bf4ce5616e26111aa800766"), "inst_id" : 224701 }
+
+> db.joins.aggregate([
+...   {
+...     $match: { course_id: 950000 }
+...   },
+...   {
+...     $lookup:
+...       {
+...         from: "joins",
+...         localField: "inst_id",
+...         foreignField: "inst_id",
+...         as: "joins2"
+...       }
+...   },
+...   {
+...     $unwind: "$joins2"
+...   },
+...   {
+...     $match: { "joins2.course_id": { $ne: "course_id" }}
+...   },
+...   {
+...     $lookup:
+...       {
+...         from: "instructors",
+...         localField: "inst_id",
+...         foreignField: "id",
+...         as: "instructor"
+...       }
+...   },
+...   {
+...     $unwind: "$instructor"
+...   },
+...   {
+...     $lookup:
+...       {
+...         from: "courses",
+...         localField: "joins2.course_id",
+...         foreignField: "id",
+...         as: "course"
+...       }
+...   },
+...   {
+...     $unwind: "$course"
+...   },
+...   {
+...     $group:
+...       {
+...         _id:
+...           {
+...             inst_id: "$inst_id",
+...             inst_name: "$instructor.inst_name",
+...             students: "$instructor.students",
+...             title: "$instructor.title",
+...             photo_url: "$instructor.photo_url",
+...             blurb: "$instructor.blurb",
+...           },
+...         courses: { $push: "$course" }
+...       }
+...   },
+...   {
+...     $project:
+...       {
+...         inst_id: "$_id.inst_id",
+...         inst_name: "$_id.inst_name",
+...         students: "$_id.students",
+...         title: "$_id.title",
+...         photo_url: "$_id.photo_url",
+...         blurb: "$_id.blurb",
+...         courses: "$courses",
+...         _id: 0
+...       }
+...   },
+... ]);
+{ "inst_id" : 224701, "inst_name" : "Jessika Kirlin IV", "students" : 43007, "title" : "rerum rem nemo", "photo_url" : "https://randomuser.me/api/portraits/men/31.jpg", "blurb" : "Asperiores quis eaque voluptatem alias et omnis. Cupiditate rerum nihil quia repudiandae doloribus dignissimos. Dolores quam ducimus iusto quae et. Asperiores est velit iste nemo perspiciatis qui et esse. Eveniet et eius voluptatem autem eaque omnis.\n \rNemo sit culpa optio omnis et. Neque vitae consectetur. Quasi enim porro fuga. Nisi enim vel voluptates numquam labore cum voluptates amet voluptas. Distinctio quidem excepturi quia doloribus. Nam eligendi eaque voluptatem quasi reprehenderit.\n \rOdit perferendis ratione sint magnam at inventore nesciunt voluptas. Dolor dolore eius iusto vel perspiciatis. Dolores velit quis quis velit officiis blanditiis exercitationem illum corrupti. Voluptas officia non. Numquam eum sit aliquam sequi. Expedita fuga non ut rerum autem quia in accusamus eligendi.", "courses" : [ { "_id" : ObjectId("5bf4d7dc16e26111aa38b55f"), "id" : 248658, "course_name" : "Backing up customized action-items", "rating" : 2.3, "reviews" : 995, "lectures" : 29, "num_hours" : 3, "full_price" : 213.45, "disc_price" : 21.34, "photo_url" : "https://picsum.photos/200/300?image=42" }, { "_id" : ObjectId("5bf4d7de16e26111aa3bef92"), "id" : 459951, "course_name" : "Programming transparent e-markets", "rating" : 2.5, "reviews" : 975, "lectures" : 91, "num_hours" : 57, "full_price" : 449.09, "disc_price" : 44.9, "photo_url" : "https://picsum.photos/200/300?image=21" }, { "_id" : ObjectId("5bf4d7de16e26111aa3c71ad"), "id" : 493226, "course_name" : "Backing up transparent platforms", "rating" : 3.9, "reviews" : 921, "lectures" : 65, "num_hours" : 456, "full_price" : 735.87, "disc_price" : 73.58, "photo_url" : "https://picsum.photos/200/300?image=13" }, { "_id" : ObjectId("5bf4d7e116e26111aa410608"), "id" : 793048, "course_name" : "Synthesizing 24/365 action-items", "rating" : 5, "reviews" : 631, "lectures" : 9, "num_hours" : 63, "full_price" : 187.11, "disc_price" : 18.71, "photo_url" : "https://picsum.photos/200/300?image=9" }, { "_id" : ObjectId("5bf4d7e316e26111aa436bbd"), "id" : 950000, "course_name" : "Parsing strategic initiatives", "rating" : 3.7, "reviews" : 352, "lectures" : 32, "num_hours" : 152, "full_price" : 375.92, "disc_price" : 37.59, "photo_url" : "https://picsum.photos/200/300?image=35" }, { "_id" : ObjectId("5bf4d7e316e26111aa44144a"), "id" : 993096, "course_name" : "Compressing dot-com e-commerce", "rating" : 0.1, "reviews" : 344, "lectures" : 72, "num_hours" : 435, "full_price" : 167.48, "disc_price" : 16.74, "photo_url" : "https://picsum.photos/200/300?image=28" }, { "_id" : ObjectId("5bf4d7e516e26111aa476bf4"), "id" : 1211938, "course_name" : "Indexing impactful users", "rating" : 4.9, "reviews" : 85, "lectures" : 37, "num_hours" : 148, "full_price" : 912.16, "disc_price" : 91.21, "photo_url" : "https://picsum.photos/200/300?image=10" }, { "_id" : ObjectId("5bf4d7e816e26111aa4bebcc"), "id" : 1506511, "course_name" : "Indexing out-of-the-box e-markets", "rating" : 4.1, "reviews" : 372, "lectures" : 51, "num_hours" : 405, "full_price" : 654.94, "disc_price" : 65.49, "photo_url" : "https://picsum.photos/200/300?image=13" }, { "_id" : ObjectId("5bf4d7eb16e26111aa4f2495"), "id" : 1717447, "course_name" : "Hacking rich supply-chains", "rating" : 1.3, "reviews" : 321, "lectures" : 18, "num_hours" : 61, "full_price" : 90.33, "disc_price" : 9.03, "photo_url" : "https://picsum.photos/200/300?image=2" }, { "_id" : ObjectId("5bf4d7f116e26111aa583603"), "id" : 2311146, "course_name" : "Hacking revolutionary supply-chains", "rating" : 4.2, "reviews" : 676, "lectures" : 65, "num_hours" : 189, "full_price" : 5.72, "disc_price" : 0.57, "photo_url" : "https://picsum.photos/200/300?image=18" }, { "_id" : ObjectId("5bf4d7f316e26111aa5bd856"), "id" : 2549067, "course_name" : "Indexing back-end functionalities", "rating" : 2.4, "reviews" : 197, "lectures" : 77, "num_hours" : 398, "full_price" : 554.66, "disc_price" : 55.46, "photo_url" : "https://picsum.photos/200/300?image=3" }, { "_id" : ObjectId("5bf4d7f716e26111aa61ea93"), "id" : 2946552, "course_name" : "Navigating cutting-edge bandwidth", "rating" : 4.2, "reviews" : 493, "lectures" : 85, "num_hours" : 218, "full_price" : 127.58, "disc_price" : 12.75, "photo_url" : "https://picsum.photos/200/300?image=32" }, { "_id" : ObjectId("5bf4d7f716e26111aa628a6a"), "id" : 2987428, "course_name" : "Generating 24/365 vortals", "rating" : 4.1, "reviews" : 233, "lectures" : 58, "num_hours" : 60, "full_price" : 531.45, "disc_price" : 53.14, "photo_url" : "https://picsum.photos/200/300?image=29" }, { "_id" : ObjectId("5bf4d7f916e26111aa646168"), "id" : 3107888, "course_name" : "Navigating holistic models", "rating" : 4.6, "reviews" : 182, "lectures" : 43, "num_hours" : 310, "full_price" : 252.88, "disc_price" : 25.28, "photo_url" : "https://picsum.photos/200/300?image=4" }, { "_id" : ObjectId("5bf4d7f916e26111aa64a63b"), "id" : 3125487, "course_name" : "Calculating magnetic metrics", "rating" : 4.6, "reviews" : 26, "lectures" : 56, "num_hours" : 443, "full_price" : 180.3, "disc_price" : 18.03, "photo_url" : "https://picsum.photos/200/300?image=38" }, { "_id" : ObjectId("5bf4d80516e26111aa76b082"), "id" : 4306584, "course_name" : "Bypassing visionary bandwidth", "rating" : 0.3, "reviews" : 680, "lectures" : 47, "num_hours" : 316, "full_price" : 777.6, "disc_price" : 77.76, "photo_url" : "https://picsum.photos/200/300?image=13" }, { "_id" : ObjectId("5bf4d80516e26111aa77a053"), "id" : 4367913, "course_name" : "Hacking impactful metrics", "rating" : 2.2, "reviews" : 71, "lectures" : 83, "num_hours" : 777, "full_price" : 216.93, "disc_price" : 21.69, "photo_url" : "https://picsum.photos/200/300?image=48" }, { "_id" : ObjectId("5bf4d80816e26111aa7b908b"), "id" : 4625757, "course_name" : "Hacking strategic e-services", "rating" : 2.9, "reviews" : 508, "lectures" : 92, "num_hours" : 500, "full_price" : 289.6, "disc_price" : 28.96, "photo_url" : "https://picsum.photos/200/300?image=25" }, { "_id" : ObjectId("5bf4d80c16e26111aa812a11"), "id" : 4992373, "course_name" : "Backing up e-business eyeballs", "rating" : 3, "reviews" : 538, "lectures" : 17, "num_hours" : 21, "full_price" : 737.1, "disc_price" : 73.71, "photo_url" : "https://picsum.photos/200/300?image=50" }, { "_id" : ObjectId("5bf4d81016e26111aa87dcb3"), "id" : 5430882, "course_name" : "Indexing ubiquitous e-services", "rating" : 3.1, "reviews" : 339, "lectures" : 93, "num_hours" : 779, "full_price" : 801.78, "disc_price" : 80.17, "photo_url" : "https://picsum.photos/200/300?image=41" }, { "_id" : ObjectId("5bf4d81716e26111aa91ed1a"), "id" : 6089784, "course_name" : "Generating front-end infomediaries", "rating" : 3.7, "reviews" : 452, "lectures" : 92, "num_hours" : 538, "full_price" : 993.15, "disc_price" : 99.31, "photo_url" : "https://picsum.photos/200/300?image=30" }, { "_id" : ObjectId("5bf4d81816e26111aa93c413"), "id" : 6210227, "course_name" : "Backing up cross-platform e-business", "rating" : 3.3, "reviews" : 186, "lectures" : 6, "num_hours" : 12, "full_price" : 724.96, "disc_price" : 72.49, "photo_url" : "https://picsum.photos/200/300?image=14" }, { "_id" : ObjectId("5bf4d81916e26111aa95bda9"), "id" : 6339529, "course_name" : "Generating compelling web-readiness", "rating" : 2.3, "reviews" : 963, "lectures" : 32, "num_hours" : 99, "full_price" : 311.32, "disc_price" : 31.13, "photo_url" : "https://picsum.photos/200/300?image=10" }, { "_id" : ObjectId("5bf4d81a16e26111aa96efcd"), "id" : 6417822, "course_name" : "Copying user-centric solutions", "rating" : 0.8, "reviews" : 946, "lectures" : 56, "num_hours" : 14, "full_price" : 674.35, "disc_price" : 67.43, "photo_url" : "https://picsum.photos/200/300?image=11" }, { "_id" : ObjectId("5bf4d81b16e26111aa986464"), "id" : 6513109, "course_name" : "Generating bricks-and-clicks e-tailers", "rating" : 0.4, "reviews" : 27, "lectures" : 45, "num_hours" : 246, "full_price" : 573.77, "disc_price" : 57.37, "photo_url" : "https://picsum.photos/200/300?image=19" }, { "_id" : ObjectId("5bf4d82116e26111aaa224b1"), "id" : 7151524, "course_name" : "Navigating out-of-the-box partnerships", "rating" : 1.9, "reviews" : 288, "lectures" : 93, "num_hours" : 908, "full_price" : 853.48, "disc_price" : 85.34, "photo_url" : "https://picsum.photos/200/300?image=47" }, { "_id" : ObjectId("5bf4d82316e26111aaa4f9dc"), "id" : 7336983, "course_name" : "Navigating global e-tailers", "rating" : 3.9, "reviews" : 393, "lectures" : 43, "num_hours" : 153, "full_price" : 497.92, "disc_price" : 49.79, "photo_url" : "https://picsum.photos/200/300?image=45" }, { "_id" : ObjectId("5bf4d82716e26111aaa9d78b"), "id" : 7655557, "course_name" : "Generating strategic systems", "rating" : 3.2, "reviews" : 894, "lectures" : 94, "num_hours" : 821, "full_price" : 380.05, "disc_price" : 38, "photo_url" : "https://picsum.photos/200/300?image=37" }, { "_id" : ObjectId("5bf4d82b16e26111aab076ff"), "id" : 8089159, "course_name" : "Copying turn-key e-commerce", "rating" : 4.8, "reviews" : 673, "lectures" : 75, "num_hours" : 106, "full_price" : 579.05, "disc_price" : 57.9, "photo_url" : "https://picsum.photos/200/300?image=30" }, { "_id" : ObjectId("5bf4d82b16e26111aab0ff05"), "id" : 8123947, "course_name" : "Hacking dynamic e-markets", "rating" : 0.7, "reviews" : 733, "lectures" : 1, "num_hours" : 7, "full_price" : 492.84, "disc_price" : 49.28, "photo_url" : "https://picsum.photos/200/300?image=43" }, { "_id" : ObjectId("5bf4d83016e26111aab8660b"), "id" : 8608586, "course_name" : "Quantifying ubiquitous architectures", "rating" : 0.9, "reviews" : 201, "lectures" : 77, "num_hours" : 645, "full_price" : 359.34, "disc_price" : 35.93, "photo_url" : "https://picsum.photos/200/300?image=17" }, { "_id" : ObjectId("5bf4d83216e26111aabb98fe"), "id" : 8818027, "course_name" : "Bypassing holistic methodologies", "rating" : 1.5, "reviews" : 887, "lectures" : 5, "num_hours" : 28, "full_price" : 104.03, "disc_price" : 10.4, "photo_url" : "https://picsum.photos/200/300?image=28" }, { "_id" : ObjectId("5bf4d83616e26111aac0fca5"), "id" : 9170862, "course_name" : "Parsing scalable models", "rating" : 3.8, "reviews" : 385, "lectures" : 35, "num_hours" : 244, "full_price" : 818.09, "disc_price" : 81.8, "photo_url" : "https://picsum.photos/200/300?image=5" }, { "_id" : ObjectId("5bf4d83816e26111aac35c85"), "id" : 9326325, "course_name" : "Synthesizing out-of-the-box schemas", "rating" : 5, "reviews" : 733, "lectures" : 84, "num_hours" : 326, "full_price" : 824.33, "disc_price" : 82.43, "photo_url" : "https://picsum.photos/200/300?image=33" }, { "_id" : ObjectId("5bf4d83c16e26111aacaad11"), "id" : 9805217, "course_name" : "Compressing cutting-edge synergies", "rating" : 1.9, "reviews" : 505, "lectures" : 55, "num_hours" : 220, "full_price" : 636.31, "disc_price" : 63.63, "photo_url" : "https://picsum.photos/200/300?image=33" } ] }...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+db.joins.find({ course_id: 950000 }, { inst_id: 1 });
+
+
+db.joins.explain("executionStats").aggregate([
+  {
+    $match: { course_id: 950000 }
+  },
+  {
+    $lookup:
+      {
+        from: "joins",
+        localField: "inst_id",
+        foreignField: "inst_id",
+        as: "joins2"
+      }
+  },
+  {
+    $unwind: "$joins2"
+  },
+  {
+    $match: { "joins2.course_id": { $ne: "course_id" }}
+  },
+  {
+    $lookup:
+      {
+        from: "instructors",
+        localField: "inst_id",
+        foreignField: "id",
+        as: "instructor"
+      }
+  },
+  {
+    $unwind: "$instructor"
+  },
+  {
+    $lookup:
+      {
+        from: "courses",
+        localField: "joins2.course_id",
+        foreignField: "id",
+        as: "course"
+      }
+  },
+  {
+    $unwind: "$course"
+  },
+  {
+    $group:
+      {
+        _id:
+          {
+            inst_id: "$inst_id",
+            inst_name: "$instructor.inst_name",
+            students: "$instructor.students",
+            title: "$instructor.title",
+            photo_url: "$instructor.photo_url",
+            blurb: "$instructor.blurb",
+          },
+        courses: { $push: "$course" }
+      }
+  },
+  {
+    $project:
+      {
+        inst_id: "$_id.inst_id",
+        inst_name: "$_id.inst_name",
+        students: "$_id.students",
+        title: "$_id.title",
+        photo_url: "$_id.photo_url",
+        blurb: "$_id.blurb",
+        courses: "$courses",
+        _id: 0
+      }
+  },
+]);
+

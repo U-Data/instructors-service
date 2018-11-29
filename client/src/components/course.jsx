@@ -81,7 +81,8 @@ export default Course;
 Course.propTypes = {
   instInfo: PropTypes.shape({
     photo_url: PropTypes.string,
-    rating: PropTypes.string,
+    // rating: PropTypes.string,
+    rating: PropTypes.number,
     reviews: PropTypes.number,
     students: PropTypes.number,
     courses: PropTypes.number,
@@ -94,7 +95,8 @@ Course.propTypes = {
     lectures: PropTypes.number,
     num_hours: PropTypes.number,
     course_name: PropTypes.string,
-    rating: PropTypes.string,
+    // rating: PropTypes.string,
+    rating: PropTypes.number,
     reviews: PropTypes.number,
     disc_price: PropTypes.string,
     full_price: PropTypes.string,
