@@ -1,10 +1,12 @@
 /* eslint-disable prefer-arrow-callback */
+require('newrelic');
 const express = require('express');
 const path = require('path');
 const sql = require('../database/sqlizeIndex.js');
 
 const app = express();
 
+app.use('/', express.static(path.join(__dirname, '/../client/dist')));
 app.use('/courses', express.static(path.join(__dirname, '/../client/dist')));
 
 app.get('/courses/:id', (req, res) => {
